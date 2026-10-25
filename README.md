@@ -10,6 +10,16 @@ Claude, Grok, Meta Muse, ChatGPT 같은 AI 에이전트에 "커스텀 커넥터"
 
 > 네이버의 공식 서비스가 아닙니다. 네이버 메일이 제공하는 IMAP/SMTP로 동작합니다.
 
+### 실제 네이버 계정에서 확인한 것 (2026-10, Meta Muse 연결)
+
+- 2단계 인증 계정을 애플리케이션 비밀번호로 연결
+- 계정·안 읽은 메일 수 확인, 최근 메일 요약
+- 검색: 한글 낱말(`결제`), 제목(`subject:`), 기간(`newer_than:30d`), 첨부(`has:attachment`, `filename:pdf`), 보낸메일함(`in:sent`)
+- 대화 묶어 보기(`get_thread`), 첨부 이름 읽기
+- 메일 발송과 보낸메일함 저장(중복 없음)
+
+답장·전달·임시보관함·라벨 이동·휴지통은 가짜 메일 서버 통합 테스트로 확인했고, 실제 계정 확인은 진행 중입니다.
+
 ## 어떤 에이전트에 연결할 수 있나
 
 클라우드에서 도는 에이전트는 **공개 HTTPS 주소의 원격 MCP 서버(Streamable HTTP)** 를 요구하고, 로그인은 OAuth로 합니다. 이 서버는 두 조건을 모두 갖췄습니다.
@@ -18,11 +28,9 @@ Claude, Grok, Meta Muse, ChatGPT 같은 AI 에이전트에 "커스텀 커넥터"
 | --- | --- |
 | Claude (claude.ai, 데스크톱, 모바일) | 설정 → 커넥터 → 커스텀 커넥터 추가 → `https://<내 서버>/mcp` |
 | Grok | grok.com/connectors → New Connector → Custom → `https://<내 서버>/mcp` |
-| Meta Muse | 설정에서 커넥터 URL 추가, 또는 대화창에서 URL을 주고 연결 요청. Client ID 칸이 나오면 아무 값이나 넣어도 됩니다 (Client Secret은 비움) |
+| Meta Muse | 설정에서 커넥터 URL 추가, 또는 대화창에서 URL을 주고 연결 요청 |
 | ChatGPT (OpenAI Dots 포함) | 설정 → 앱/커넥터 → 개발자 모드에서 커스텀 커넥터 추가 |
 | Claude Code, Cursor 등 | `https://<내 서버>/mcp` (OAuth) 또는 고정 토큰 헤더, 또는 stdio 모드 |
-
-Client ID를 직접 넣으라는 에이전트도 있는데, 이 서버는 처음 보는 Client ID를 자동으로 등록하므로 **아무 값이나 넣어도 됩니다**. Client Secret은 비워 두세요.
 
 주소를 넣으면 이 서버의 로그인 화면이 열립니다. **네이버 아이디와 애플리케이션 비밀번호**를 넣으면 IMAP 로그인으로 확인한 뒤 연결됩니다.
 메뉴 이름이나 요금제별 허용 여부는 각 서비스 사정에 따라 바뀔 수 있습니다.
