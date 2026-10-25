@@ -4,6 +4,8 @@
 
 [한국어](README.md)
 
+<p align="center"><img src="docs/demo.gif" width="640" alt="Demo: an AI assistant summarizing important Naver Mail messages and replying"></p>
+
 Naver Mail is the most widely used email service in Korea, but unlike Gmail it has no official API or MCP connector. This server bridges it over IMAP/SMTP and exposes **30 tools whose names and inputs match the Gmail MCP** (`search_threads`, `get_thread`, `reply`, `forward`, `label_message`, `trash_message`, drafts …), so agent workflows built for Gmail work on Naver Mail unchanged.
 
 - Gmail search syntax: `from:bank is:unread newer_than:7d`, `subject:(meeting notes) has:attachment`, `filename:pdf`, `in:sent`, `OR`, `-exclude`
