@@ -16,6 +16,8 @@ export interface ParsedQuery {
   exclude: Scope[];
   /** has:attachment / filename:. 네이버 IMAP은 헤더 검색을 믿을 수 없어 메일 구조(BODYSTRUCTURE)로 따로 거른다 */
   attachment?: { required: boolean; filename?: string };
+  /** 맨 바깥 AND의 낱말. 네이버 IMAP은 OR·본문 검색을 섞으면 실패해서, 필드별로 따로 검색해 합친다 */
+  keywords?: string[];
   warnings: string[];
 }
 
@@ -26,6 +28,7 @@ type Node =
   | { t: 'not'; c: Node }
   | { t: 'scope'; s: Scope }
   | { t: 'attach'; filename?: string }
+  | { t: 'kw'; w: string }
   | { t: 'all' };
 
 type Token = { k: 'word'; v: string; quoted: boolean; neg: boolean } | { k: 'op'; v: '(' | ')' | '{' | '}' | 'OR' | 'AND'; neg: boolean };
@@ -290,12 +293,15 @@ class Parser {
 }
 
 /**
- * 낱말 검색. 네이버 IMAP의 TEXT 검색은 한글을 찾지 못해서(실제 계정에서 확인),
- * Gmail처럼 제목·보낸 사람·본문을 각각 찾아 합친다.
+ * 낱말 검색. Gmail처럼 제목·보낸 사람·본문에서 찾는다.
+ * 네이버 IMAP은 TEXT 검색과 OR/BODY를 섞은 검색이 실패해서(실제 계정에서 0건), 맨 바깥 낱말은
+ * 서비스가 필드마다 따로 검색해 합치고, 괄호·OR 안의 낱말만 OR 검색으로 보낸다.
  */
 function keyword(w: string): Node {
-  return { t: 'leaf', q: { or: [{ subject: w }, { from: w }, { body: w }] } };
+  return { t: 'kw', w };
 }
+
+const keywordOr = (w: string): Node => ({ t: 'leaf', q: { or: [{ subject: w }, { from: w }, { body: w }] } });
 
 function negate(n: Node): Node {
   if (n.t === 'all') return n;
@@ -308,6 +314,7 @@ function extractScopes(root: Node, warnings: string[]) {
   const include: Scope[] = [];
   const exclude: Scope[] = [];
   let attachment: ParsedQuery['attachment'];
+  const keywords: string[] = [];
   const top = root.t === 'and' ? root.c : [root];
   const rest: Node[] = [];
   for (const n of top) {
@@ -315,6 +322,7 @@ function extractScopes(root: Node, warnings: string[]) {
     else if (n.t === 'not' && n.c.t === 'scope') exclude.push(n.c.s);
     else if (n.t === 'attach') attachment = { required: true, filename: n.filename ?? attachment?.filename };
     else if (n.t === 'not' && n.c.t === 'attach' && !n.c.filename) attachment = { required: false };
+    else if (n.t === 'kw') keywords.push(n.w);
     else rest.push(n);
   }
   const strip = (n: Node): Node => {
@@ -326,11 +334,12 @@ function extractScopes(root: Node, warnings: string[]) {
       warnings.push('첨부 조건(has:attachment, filename:)은 OR나 괄호 안에서는 쓸 수 없어 무시했습니다.');
       return { t: 'all' };
     }
+    if (n.t === 'kw') return keywordOr(n.w);
     if (n.t === 'and' || n.t === 'or') return { ...n, c: n.c.map(strip) };
     if (n.t === 'not') return { t: 'not', c: strip(n.c) };
     return n;
   };
-  return { include, exclude, attachment, rest: rest.map(strip) };
+  return { include, exclude, attachment, keywords, rest: rest.map(strip) };
 }
 
 /** 조건 없는 노드(all)를 걸러 낸다. OR 안에 all이 있으면 OR 전체가 all */
@@ -377,7 +386,21 @@ export function parseGmailQuery(query: string | undefined, now = new Date()): Pa
   const parser = new Parser(tokenize(query ?? ''), now);
   const root = parser.parse();
   const warnings = parser.warnings;
-  const { include, exclude, attachment, rest } = extractScopes(root, warnings);
+  const { include, exclude, attachment, keywords, rest } = extractScopes(root, warnings);
   const body = simplify({ t: 'and', c: rest });
-  return { search: body.t === 'all' ? undefined : toSearch(body), include, exclude, ...(attachment ? { attachment } : {}), warnings };
+  return {
+    search: body.t === 'all' ? undefined : toSearch(body),
+    include,
+    exclude,
+    ...(attachment ? { attachment } : {}),
+    ...(keywords.length ? { keywords } : {}),
+    warnings,
+  };
+}
+
+/** 두 검색 조건의 AND. 키가 겹치지 않으면 한 객체로 합친다 (네이버가 못 알아듣는 NOT NOT을 되도록 피함) */
+export function andSearch(a: SearchObject | undefined, b: SearchObject): SearchObject {
+  if (!a) return b;
+  const overlap = Object.keys(b).some((k) => k in a);
+  return overlap ? { or: [a], not: { not: b } } : { ...a, ...b };
 }

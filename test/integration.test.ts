@@ -1,7 +1,8 @@
 import { createRequire } from 'node:module';
 import type { AddressInfo } from 'node:net';
 import { SMTPServer } from 'smtp-server';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ImapFlow } from 'imapflow';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { naverAccount, type MailConfig } from '../src/mail/imap';
 import { NaverMailService } from '../src/mail/service';
 
@@ -232,6 +233,26 @@ describe('읽기', () => {
     expect(b!.attachments).toEqual([{ attachmentId: '0', filename: 'statement.txt', mimeType: 'text/plain', size: 12 }]);
     const att = await svc.getAttachment(b!.id, '0');
     expect(att.text).toBe('total=123000');
+  });
+});
+
+describe('네이버처럼 OR·BODY·TEXT 검색을 거부하는 서버', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('낱말은 제목·보낸 사람으로 찾고, 본문 검색 실패를 알려 준다', async () => {
+    const original = ImapFlow.prototype.search;
+    vi.spyOn(ImapFlow.prototype, 'search').mockImplementation(function (this: ImapFlow, q, opts) {
+      const s = JSON.stringify(q);
+      if (/"(or|body|text)"/.test(s)) return Promise.resolve(false);
+      return original.call(this, q, opts);
+    });
+    const r = await svc.searchThreads({ query: '견적' });
+    expect(r.threads).toHaveLength(1);
+    expect(r.warnings?.[0]).toContain('본문 검색');
+    // 보낸 사람 이름으로도 찾는다 (가짜 서버는 인코딩된 이름을 검색하지 못해 영문 이름으로)
+    expect((await svc.searchThreads({ query: 'Bob' })).threads).toHaveLength(1);
+    const both = await svc.searchThreads({ query: '견적 is:unread' });
+    expect(both.threads.flatMap((t) => t.messages.map((m) => m.subject))).toEqual(['Re: 견적 요청']);
   });
 });
 

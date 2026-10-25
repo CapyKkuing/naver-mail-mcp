@@ -12,7 +12,10 @@ describe('Gmail 검색 문법 → IMAP', () => {
   it('연산자와 키워드', () => {
     expect(q('from:alice@example.com').search).toEqual({ from: 'alice@example.com' });
     expect(q('is:unread').search).toEqual({ seen: false });
-    expect(q('"회의 자료"').search).toEqual({ or: [{ subject: '회의 자료' }, { from: '회의 자료' }, { body: '회의 자료' }] });
+    expect(q('"회의 자료"')).toMatchObject({ search: undefined, keywords: ['회의 자료'] });
+    expect(q('결제 from:naver')).toMatchObject({ search: { from: 'naver' }, keywords: ['결제'] });
+    // 괄호·OR 안의 낱말은 OR 검색으로
+    expect(q('결제 OR 송금').search).toEqual({ or: [{ or: [{ subject: '결제' }, { from: '결제' }, { body: '결제' }] }, { or: [{ subject: '송금' }, { from: '송금' }, { body: '송금' }] }] });
     expect(q('subject:"분기 보고"').search).toEqual({ subject: '분기 보고' });
     expect(q('larger:5M').search).toEqual({ larger: 5 * 1024 * 1024 });
   });
@@ -49,7 +52,7 @@ describe('Gmail 검색 문법 → IMAP', () => {
 
   it('지원하지 않는 조건은 무시하고 알려 준다', () => {
     const r = q('category:promotions 할인');
-    expect(r.search).toEqual({ or: [{ subject: '할인' }, { from: '할인' }, { body: '할인' }] });
+    expect(r).toMatchObject({ search: undefined, keywords: ['할인'] });
     expect(r.warnings[0]).toContain('category:promotions');
   });
 });
