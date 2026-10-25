@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "naver-mail-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "MCP_OBJECT", "class_name": "NaverMailMcp" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["NaverMailMcp"] }],
+  // OAuth 클라이언트·토큰 저장소. 배포 전에 `npx wrangler kv namespace create OAUTH_KV`로 만든 id를 넣는다
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "REPLACE_WITH_KV_ID" }],
+  "vars": {
+    // OAuth 메타데이터에 쓰이는 배포 주소. 로컬 개발은 .dev.vars에서 덮어쓴다
+    "PUBLIC_URL": "https://naver-mail-mcp.example.workers.dev",
+    // 쉼표로 구분한 네이버 아이디. 비우면 누구나 자기 계정으로 연결 가능
+    "ALLOWED_USERS": "",
+    "SAVE_SENT_COPY": "true"
+  }
+  // 시크릿(선택, 고정 토큰 모드): wrangler secret put MCP_BEARER_TOKEN / NAVER_ID / NAVER_APP_PASSWORD
+}

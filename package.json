@@ -1,0 +1,41 @@
+{
+  "name": "naver-mail-mcp",
+  "version": "0.1.0",
+  "description": "네이버 메일을 Gmail MCP와 같은 도구로 쓰는 원격 MCP 서버 (Cloudflare Workers, IMAP/SMTP)",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "stdio": "tsx src/stdio.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "naver",
+    "naver-mail",
+    "imap",
+    "model-context-protocol"
+  ],
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^1.2.4",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "agents": "^0.30.1",
+    "imapflow": "^2.9.1",
+    "postal-mime": "^4.1.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261025.1",
+    "@types/node": "^26.6.5",
+    "@types/smtp-server": "^3.5.13",
+    "hoodiecrow-imap": "^3.3.1",
+    "smtp-server": "^3.21.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.152.0"
+  }
+}
