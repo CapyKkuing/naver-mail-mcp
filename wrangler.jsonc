@@ -3,7 +3,8 @@
   "name": "naver-mail-mcp",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
-  "compatibility_flags": ["nodejs_compat"],
+  // global_fetch_strictly_public: 주소형 Client ID(CIMD, Claude 등)를 읽을 때 라이브러리가 요구한다
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "durable_objects": {
     "bindings": [{ "name": "MCP_OBJECT", "class_name": "NaverMailMcp" }]
   },
