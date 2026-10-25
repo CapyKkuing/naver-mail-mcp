@@ -116,13 +116,17 @@ async function authorize(req: Request, env: Env & { OAUTH_PROVIDER: OAuthHelpers
 
 const providers = new Map<string, OAuthProvider<Env>>();
 
-/** PUBLIC_URL(배포 주소)마다 하나. 로컬은 http://localhost:8787 */
+/**
+ * 배포 주소마다 하나. PUBLIC_URL이 없으면 요청이 들어온 주소를 쓴다
+ * (Deploy to Cloudflare 버튼으로 각자 배포해도 설정 없이 동작하도록).
+ */
 export function oauthProvider(
   env: Env,
   apiHandler: { fetch: (req: Request, env: Env, ctx: ExecutionContext) => Promise<Response> },
   verify: Verifier = verifyImap,
+  origin?: string,
 ): OAuthProvider<Env> {
-  const base = (env.PUBLIC_URL || 'http://localhost:8787').replace(/\/$/, '');
+  const base = (env.PUBLIC_URL || origin || 'http://localhost:8787').replace(/\/$/, '');
   let p = providers.get(base);
   if (!p) {
     p = new OAuthProvider<Env>({

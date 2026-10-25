@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.capykkuing/naver-mail-mcp",
+  "title": "Naver Mail (네이버 메일)",
+  "description": "Read, search, reply to and organize Naver Mail with the same tools as the Gmail MCP (IMAP/SMTP).",
+  "repository": {
+    "url": "https://github.com/CapyKkuing/naver-mail-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://naver-mail-mcp.yeonuunim521.workers.dev/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "naver-mail-mcp",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        { "name": "NAVER_ID", "description": "Naver ID (without @naver.com)", "isRequired": true, "format": "string" },
+        { "name": "NAVER_APP_PASSWORD", "description": "Naver app password (2-step verification required)", "isRequired": true, "format": "string", "isSecret": true }
+      ]
+    }
+  ]
+}
