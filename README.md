@@ -25,6 +25,35 @@ Claude, Grok, Meta Muse, ChatGPT 같은 AI 에이전트에 "커스텀 커넥터"
 주소를 넣으면 이 서버의 로그인 화면이 열립니다. **네이버 아이디와 애플리케이션 비밀번호**를 넣으면 IMAP 로그인으로 확인한 뒤 연결됩니다.
 메뉴 이름이나 요금제별 허용 여부는 각 서비스 사정에 따라 바뀔 수 있습니다.
 
+### 바로 설치 (배포된 서버 사용)
+
+공개 서버 주소: `https://naver-mail-mcp.yeonuunim521.workers.dev/mcp`
+
+**Claude Code**
+
+```bash
+claude mcp add --transport http naver-mail https://naver-mail-mcp.yeonuunim521.workers.dev/mcp
+```
+
+그다음 Claude Code에서 `/mcp`를 열어 naver-mail을 고르고 브라우저 로그인을 마칩니다.
+
+**Codex CLI**
+
+```bash
+codex mcp add naver-mail --url https://naver-mail-mcp.yeonuunim521.workers.dev/mcp
+codex mcp login naver-mail
+```
+
+옛 버전에서 OAuth가 안 되면 Codex를 업데이트하세요.
+
+**AI에게 맡기기:** Claude Code나 Codex에 아래 문장을 붙여 넣으면 설치 명령은 AI가 실행합니다. 로그인(네이버 아이디·애플리케이션 비밀번호 입력)만 직접 브라우저에서 하면 됩니다.
+
+```text
+네이버 메일 MCP를 설치해줘. 원격 MCP 서버(Streamable HTTP, OAuth) 주소는
+https://naver-mail-mcp.yeonuunim521.workers.dev/mcp 이고 이름은 naver-mail로 해줘.
+설치 후 OAuth 로그인 방법을 알려줘.
+```
+
 ## 네이버 메일 준비 (사용자마다 한 번)
 
 1. 네이버 메일 → 환경설정 → **POP3/IMAP 설정** → **IMAP/SMTP 사용**을 켭니다.
