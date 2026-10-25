@@ -70,6 +70,9 @@ const RAW_LIMIT = 2_000_000;
 const SNIPPET_BYTES = 24 * 1024;
 const ATTACHMENT_LIMIT = 25 * 1024 * 1024;
 const MAX_ATTACHMENT_RETURN = 8 * 1024 * 1024;
+const ATTACH_BATCH = 200;
+const ATTACH_SCAN_LIMIT = 3000;
+const THREAD_SCAN_LIMIT = 1000;
 
 const uniq = <T>(xs: T[]) => [...new Set(xs)];
 const lower = (s: string) => s.toLowerCase();
@@ -100,7 +103,7 @@ export class NaverMailService {
   ) {}
 
   private run<T>(fn: (s: Session) => Promise<T>): Promise<T> {
-    return withClient(this.account, this.cfg, (c) => fn(new Session(c, this.account)));
+    return withClient(this.account, this.cfg, (c) => fn(new Session(c, this.account, this.cfg)));
   }
 
   // ───────────── 계정·라벨 ─────────────
@@ -420,6 +423,7 @@ class Session {
   constructor(
     readonly client: ImapFlow,
     readonly account: Account,
+    readonly cfg: MailConfig,
   ) {}
 
   async folders(): Promise<Folder[]> {
@@ -499,16 +503,37 @@ class Session {
     const need = offset + pageSize;
     const candidates: Hit[] = [];
     let more = false;
+    const attach = parsed.attachment;
     for (const folder of scoped.folders) {
       await this.withLock(folder.path, async () => {
         const uids = (await this.client.search(parsed.search ?? { all: true }, { uid: true })) || [];
         if (!uids.length) return;
         const sorted = [...uids].sort((x, y) => y - x);
-        if (sorted.length > need) more = true;
-        const top = sorted.slice(0, need);
         const uidValidity = this.currentUidValidity();
-        for await (const msg of this.client.fetch(top, { uid: true, internalDate: true }, { uid: true })) {
-          candidates.push({ folder, uid: msg.uid, uidValidity, date: toDate(msg.internalDate) });
+        if (!attach) {
+          if (sorted.length > need) more = true;
+          for await (const msg of this.client.fetch(sorted.slice(0, need), { uid: true, internalDate: true }, { uid: true })) {
+            candidates.push({ folder, uid: msg.uid, uidValidity, date: toDate(msg.internalDate) });
+          }
+          return;
+        }
+        // 첨부 조건: 최신 메일부터 구조를 읽어 need개를 채울 때까지 거른다
+        let found = 0;
+        let scanned = 0;
+        for (let i = 0; i < sorted.length && found < need; i += ATTACH_BATCH) {
+          if (scanned >= ATTACH_SCAN_LIMIT) {
+            more = true;
+            warnings.push(`첨부 조건은 메일함마다 최근 ${ATTACH_SCAN_LIMIT}통까지만 확인했습니다 (${folder.path}). 기간 조건(after:, newer_than:)을 함께 쓰면 더 오래된 메일도 찾을 수 있습니다.`);
+            return;
+          }
+          const batch = sorted.slice(i, i + ATTACH_BATCH);
+          scanned += batch.length;
+          for await (const msg of this.client.fetch(batch, { uid: true, internalDate: true, bodyStructure: true }, { uid: true })) {
+            if (hasAttachment(msg.bodyStructure, attach.filename) !== attach.required) continue;
+            candidates.push({ folder, uid: msg.uid, uidValidity, date: toDate(msg.internalDate) });
+            found++;
+          }
+          if (found >= need && i + ATTACH_BATCH < sorted.length) more = true;
         }
       });
     }
@@ -518,7 +543,11 @@ class Session {
     return { hits, nextPageToken: more ? String(offset + pageSize) : undefined, folders: scoped.folders.map((f) => f.path), warnings };
   }
 
-  /** 대화에 속한 메일: 첫 메일 Message-ID를 Message-ID/References/In-Reply-To에 가진 메일 */
+  /**
+   * 대화에 속한 메일: 첫 메일 Message-ID를 Message-ID/References/In-Reply-To에 가진 메일.
+   * 네이버 IMAP의 HEADER 검색은 믿을 수 없어서(실제 계정에서 헤더 검색이 0건), 결과를 헤더로 다시 확인하고
+   * 하나도 없으면 메일함마다 최근 메일의 헤더를 읽어 직접 찾는다.
+   */
   async threadHits(threadId: string, includeTrashSpam = false): Promise<Hit[]> {
     const t = decodeThreadId(threadId);
     if (t.messageId) return [await this.resolve(t.messageId)];
@@ -528,14 +557,35 @@ class Session {
     const hits: Hit[] = [];
     for (const folder of folders) {
       await this.withLock(folder.path, async () => {
-        const uids = (await this.client.search(query, { uid: true })) || [];
         const uidValidity = this.currentUidValidity();
-        for (const uid of uids) hits.push({ folder, uid, uidValidity });
+        let uids: number[] = [];
+        if (this.cfg.headerSearch !== false) {
+          const r = await this.client.search(query, { uid: true }).catch(() => false as const);
+          uids = Array.isArray(r) ? r.slice(-THREAD_SCAN_LIMIT) : [];
+        }
+        let matched = uids.length ? await this.matchThread(uids, root) : [];
+        if (!matched.length) {
+          const all = (await this.client.search({ all: true }, { uid: true })) || [];
+          matched = await this.matchThread([...all].sort((x, y) => x - y).slice(-THREAD_SCAN_LIMIT), root);
+        }
+        for (const uid of matched) hits.push({ folder, uid, uidValidity });
       });
     }
     if (!hits.length && includeTrashSpam === false) return this.threadHits(threadId, true);
-    if (!hits.length) throw new MailError('대화를 찾지 못했습니다. 메일이 지워졌을 수 있습니다.');
+    if (!hits.length) throw new MailError(`대화를 찾지 못했습니다. 메일이 지워졌거나 메일함마다 최근 ${THREAD_SCAN_LIMIT}통보다 오래된 대화일 수 있습니다.`);
     return hits;
+  }
+
+  /** 선택된 메일함에서 헤더를 읽어 같은 대화인 UID만 남긴다 */
+  private async matchThread(uids: number[], root: string): Promise<number[]> {
+    if (!uids.length) return [];
+    const out: number[] = [];
+    for await (const msg of this.client.fetch(uids, { uid: true, headers: ['message-id', 'references', 'in-reply-to'] }, { uid: true })) {
+      const mid = headerValue(msg.headers, 'message-id');
+      const refs = `${headerValue(msg.headers, 'references') ?? ''} ${headerValue(msg.headers, 'in-reply-to') ?? ''}`;
+      if (mid?.includes(root) || refs.includes(root)) out.push(msg.uid);
+    }
+    return out;
   }
 
   private checkValidity(hit: Hit) {
@@ -734,6 +784,24 @@ class Session {
 
 const addrString = (a: Address) => (a.name ? `${a.name} <${a.address}>` : a.address);
 const toAddresses = (list: Email['to']): Address[] => addresses(list).map((a) => ({ name: a.name, address: a.address }));
+
+interface StructureNode {
+  type?: string;
+  disposition?: string;
+  dispositionParameters?: Record<string, string>;
+  parameters?: Record<string, string>;
+  childNodes?: StructureNode[];
+}
+
+/** 메일 구조에 첨부(파일 이름이 있거나 attachment로 표시된 부분)가 있는지. filename이 있으면 이름에 그 글자가 든 첨부만 */
+export function hasAttachment(node: StructureNode | undefined, filename?: string): boolean {
+  if (!node) return false;
+  if (node.childNodes?.length) return node.childNodes.some((c) => hasAttachment(c, filename));
+  const name = node.dispositionParameters?.filename ?? node.parameters?.name;
+  const isAttachment = node.disposition?.toLowerCase() === 'attachment' || (!!name && !/^text\/(plain|html)$/i.test(node.type ?? ''));
+  if (!isAttachment) return false;
+  return !filename || (name ?? '').toLowerCase().includes(filename.toLowerCase());
+}
 
 function labelIds(folder: Folder, flags: Set<string> | undefined): string[] {
   const ids = [folder.role ?? folder.path];

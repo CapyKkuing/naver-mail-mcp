@@ -12,7 +12,7 @@ describe('Gmail 검색 문법 → IMAP', () => {
   it('연산자와 키워드', () => {
     expect(q('from:alice@example.com').search).toEqual({ from: 'alice@example.com' });
     expect(q('is:unread').search).toEqual({ seen: false });
-    expect(q('"회의 자료"').search).toEqual({ text: '회의 자료' });
+    expect(q('"회의 자료"').search).toEqual({ or: [{ subject: '회의 자료' }, { from: '회의 자료' }, { body: '회의 자료' }] });
     expect(q('subject:"분기 보고"').search).toEqual({ subject: '분기 보고' });
     expect(q('larger:5M').search).toEqual({ larger: 5 * 1024 * 1024 });
   });
@@ -40,9 +40,16 @@ describe('Gmail 검색 문법 → IMAP', () => {
     expect(r.search).toEqual({ flagged: true });
   });
 
+  it('첨부 조건은 IMAP 검색이 아니라 따로 거른다', () => {
+    expect(q('has:attachment from:bank')).toMatchObject({ search: { from: 'bank' }, attachment: { required: true } });
+    expect(q('filename:pdf').attachment).toEqual({ required: true, filename: 'pdf' });
+    expect(q('-has:attachment').attachment).toEqual({ required: false });
+    expect(q('has:attachment OR from:a').warnings[0]).toContain('첨부 조건');
+  });
+
   it('지원하지 않는 조건은 무시하고 알려 준다', () => {
     const r = q('category:promotions 할인');
-    expect(r.search).toEqual({ text: '할인' });
+    expect(r.search).toEqual({ or: [{ subject: '할인' }, { from: '할인' }, { body: '할인' }] });
     expect(r.warnings[0]).toContain('category:promotions');
   });
 });

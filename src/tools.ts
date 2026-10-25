@@ -30,9 +30,10 @@ const body = z.string().optional().describe('Plain text body. Do NOT format with
 const htmlBody = z.string().optional().describe('HTML body (valid HTML tags).');
 
 const QUERY_HELP =
-  'Gmail search syntax, converted to IMAP for Naver Mail. Supported: from:, to:, cc:, bcc:, subject:, "exact phrase", bare keywords (full text), ' +
+  'Gmail search syntax, converted to IMAP for Naver Mail. Supported: from:, to:, cc:, bcc:, subject:, "exact phrase", bare keywords, ' +
   'after:YYYY/MM/DD (inclusive), before:YYYY/MM/DD (exclusive), newer_than:/older_than: (e.g. 7d, 2m, 1y), is:unread, is:read, is:starred, has:attachment, ' +
-  'larger:/smaller: (e.g. 5M), rfc822msgid:, in:inbox|sent|trash|spam|draft|anywhere, label:<folder name>, OR, { }, -exclude, ( ). ' +
+  'filename:, larger:/smaller: (e.g. 5M), in:inbox|sent|trash|spam|draft|anywhere, label:<folder name>, OR, { }, -exclude, ( ). ' +
+  'Bare keywords match subject, sender or body. has:attachment/filename: check message structure of the newest 3000 messages per folder (add a date filter for older mail). ' +
   'Default scope: all folders except trash, spam and drafts. Unsupported operators (category:, AROUND …) are ignored and reported in warnings. Prefer short keyword queries.';
 
 export function registerTools(server: McpServer, svc: () => NaverMailService) {

@@ -11,6 +11,8 @@ export interface MailConfig {
   saveSentCopy: boolean;
   /** 테스트 전용: 자체 서명 인증서 허용 */
   insecureTls?: boolean;
+  /** false면 대화 찾기에 IMAP HEADER 검색을 쓰지 않고 헤더를 직접 읽는다 (테스트에서 네이버 동작 흉내) */
+  headerSearch?: boolean;
 }
 
 export const NAVER_DEFAULTS: MailConfig = {
