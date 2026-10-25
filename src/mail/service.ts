@@ -15,7 +15,7 @@ import {
 } from './imap';
 import { buildMessage, parseAddressList, type Address, type Outgoing, type OutgoingAttachment } from './mime';
 import { addresses, formatAddr, htmlToText, parseRaw, plainBody, snippetOf, threadRoot, type AddressOut } from './parse';
-import { parseGmailQuery, type FolderRole, type Scope } from './query';
+import { andSearch, parseGmailQuery, type FolderRole, type ParsedQuery, type Scope } from './query';
 import { sendMail } from './smtp';
 
 /**
@@ -506,7 +506,7 @@ class Session {
     const attach = parsed.attachment;
     for (const folder of scoped.folders) {
       await this.withLock(folder.path, async () => {
-        const uids = (await this.client.search(parsed.search ?? { all: true }, { uid: true })) || [];
+        const uids = await this.findUids(parsed, warnings);
         if (!uids.length) return;
         const sorted = [...uids].sort((x, y) => y - x);
         const uidValidity = this.currentUidValidity();
@@ -540,7 +540,36 @@ class Session {
     candidates.sort((x, y) => (y.date?.getTime() ?? 0) - (x.date?.getTime() ?? 0));
     const hits = candidates.slice(offset, offset + pageSize);
     if (candidates.length > offset + pageSize) more = true;
-    return { hits, nextPageToken: more ? String(offset + pageSize) : undefined, folders: scoped.folders.map((f) => f.path), warnings };
+    return { hits, nextPageToken: more ? String(offset + pageSize) : undefined, folders: scoped.folders.map((f) => f.path), warnings: uniq(warnings) };
+  }
+
+  /** IMAP 검색 한 번. 서버가 거부하면(imapflow는 false를 돌려줌) null */
+  private async trySearch(q: SearchObject): Promise<number[] | null> {
+    const r = await this.client.search(q, { uid: true }).catch(() => false as const);
+    return Array.isArray(r) ? r : null;
+  }
+
+  /** 선택된 메일함에서 조건에 맞는 UID. 낱말은 제목·보낸 사람·본문을 따로 검색해 합친다 */
+  private async findUids(parsed: ParsedQuery, warnings: string[]): Promise<number[]> {
+    if (!parsed.keywords?.length) {
+      const r = await this.trySearch(parsed.search ?? { all: true });
+      if (r === null) warnings.push('네이버 메일 서버가 이 검색 조건을 처리하지 못했습니다. 조건을 더 단순하게(예: subject:, from:) 바꿔 보세요.');
+      return r ?? [];
+    }
+    let result: Set<number> | undefined;
+    for (const w of parsed.keywords) {
+      const found = new Set<number>();
+      const failed: string[] = [];
+      for (const field of ['subject', 'from', 'body'] as const) {
+        const r = await this.trySearch(andSearch(parsed.search, { [field]: w }));
+        if (r === null) failed.push(field);
+        else r.forEach((u) => found.add(u));
+      }
+      if (failed.length === 3) warnings.push(`네이버 메일 서버가 "${w}" 검색을 처리하지 못했습니다.`);
+      else if (failed.includes('body')) warnings.push('네이버 메일 서버가 본문 검색을 처리하지 못해 제목·보낸 사람에서만 찾았습니다.');
+      result = result ? new Set([...result].filter((u) => found.has(u))) : found;
+    }
+    return [...(result ?? [])];
   }
 
   /**
