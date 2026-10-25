@@ -32,10 +32,11 @@ button{padding:.6rem 1.1rem;font-size:1rem;border-radius:6px;border:0;cursor:poi
 <p class="muted">${origin}<br>권한이 전달될 곳: <strong>${escape(d.redirectHost)}</strong></p>
 ${d.redirectIsLoopback ? '<p><strong>내 컴퓨터의 앱으로 권한이 전달됩니다.</strong> 방금 직접 연결을 시작한 경우에만 허용하세요.</p>' : ''}
 <div class="box">
-<strong>처음이라면 먼저 준비하세요</strong>
+<strong>처음이라면 먼저 준비하세요 (약 3분)</strong>
 <ol style="margin:.4rem 0 0;padding-left:1.2rem">
-<li>네이버 메일 → 환경설정 → <b>POP3/IMAP 설정</b>에서 <b>IMAP/SMTP 사용</b>을 켭니다.</li>
-<li>네이버 2단계 인증을 쓰면 네이버 ID → 보안설정에서 <b>애플리케이션 비밀번호</b>를 만들어 아래에 넣습니다. (평소 로그인 비밀번호는 거부됩니다)</li>
+<li><b>2단계 인증 켜기 (필수):</b> 네이버 ID → 보안설정 → 2단계 인증 → 설정하기</li>
+<li><b>애플리케이션 비밀번호 만들기:</b> 같은 화면의 2단계 인증 → 관리 → 애플리케이션 비밀번호 관리 → 생성하기. 나온 비밀번호를 복사해 아래에 넣습니다. (평소 로그인 비밀번호는 거부됩니다)</li>
+<li><b>IMAP 켜기:</b> 네이버 메일 → 환경설정 → POP3/IMAP 설정 → IMAP/SMTP 사용: <b>사용함</b> → 저장</li>
 </ol>
 </div>
 ${error ? `<p class="err">${escape(error)}</p>` : ''}
