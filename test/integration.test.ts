@@ -197,6 +197,14 @@ describe('읽기', () => {
     expect((await findThread('from:alice OR from:bank')).length).toBe(2);
   });
 
+  it('한글 낱말은 제목·보낸 사람·본문에서 찾고, 첨부는 메일 구조로 거른다', async () => {
+    expect((await findThread('견적')).length).toBe(1);
+    expect((await findThread('기다리겠습니다')).flatMap((t) => t.messages.map((m) => m.subject))).toEqual(['Re: 견적 요청']);
+    expect((await findThread('filename:statement'))[0]!.messages[0]!.subject).toBe('카드 명세서');
+    expect((await findThread('filename:nothing')).length).toBe(0);
+    expect((await findThread('-has:attachment in:inbox')).flatMap((t) => t.messages).length).toBe(3);
+  });
+
   it('페이지를 넘긴다', async () => {
     const p1 = await svc.searchThreads({ query: '', pageSize: 2 });
     expect(p1.nextPageToken).toBe('2');
@@ -224,6 +232,17 @@ describe('읽기', () => {
     expect(b!.attachments).toEqual([{ attachmentId: '0', filename: 'statement.txt', mimeType: 'text/plain', size: 12 }]);
     const att = await svc.getAttachment(b!.id, '0');
     expect(att.text).toBe('total=123000');
+  });
+});
+
+describe('HEADER 검색이 안 되는 서버 (네이버)', () => {
+  it('대화를 헤더를 직접 읽어 묶고, 답장도 같은 대화로 이어진다', async () => {
+    const naverLike = new NaverMailService(svc.account, { ...svc.cfg, headerSearch: false });
+    const [t] = (await naverLike.searchThreads({ query: 'subject:견적' })).threads;
+    const thread = await naverLike.getThread(t!.id, 'METADATA_ONLY');
+    expect(thread.messages).toHaveLength(3);
+    const r = await naverLike.reply({ messageId: thread.messages.at(-1)!.id, body: '확인했습니다.' });
+    expect((await naverLike.getThread(r.threadId, 'METADATA_ONLY')).messages).toHaveLength(4);
   });
 });
 

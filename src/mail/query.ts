@@ -14,6 +14,8 @@ export interface ParsedQuery {
   search?: SearchObject;
   include: Scope[];
   exclude: Scope[];
+  /** has:attachment / filename:. 네이버 IMAP은 헤더 검색을 믿을 수 없어 메일 구조(BODYSTRUCTURE)로 따로 거른다 */
+  attachment?: { required: boolean; filename?: string };
   warnings: string[];
 }
 
@@ -23,6 +25,7 @@ type Node =
   | { t: 'or'; c: Node[] }
   | { t: 'not'; c: Node }
   | { t: 'scope'; s: Scope }
+  | { t: 'attach'; filename?: string }
   | { t: 'all' };
 
 type Token = { k: 'word'; v: string; quoted: boolean; neg: boolean } | { k: 'op'; v: '(' | ')' | '{' | '}' | 'OR' | 'AND'; neg: boolean };
@@ -183,7 +186,7 @@ class Parser {
 
   private term(tok: Extract<Token, { k: 'word' }>): Node {
     const m = tok.quoted ? null : /^([a-zA-Z_]+):(.*)$/.exec(tok.v);
-    if (!m) return { t: 'leaf', q: { text: tok.v } };
+    if (!m) return keyword(tok.v);
     const op = m[1]!.toLowerCase();
     let value = m[2]!;
     // subject:(회의 자료) → subject:회의 subject:자료
@@ -264,11 +267,11 @@ class Parser {
         if (v === 'answered' || v === 'replied') return leaf({ answered: true });
         break;
       case 'has':
-        if (v === 'attachment') return leaf({ header: { 'Content-Type': 'multipart/mixed' } });
+        if (v === 'attachment') return { t: 'attach' };
         if (/^(yellow|red|orange|green|blue|purple)-star$/.test(v) || v === 'star') return leaf({ flagged: true });
         break;
       case 'filename':
-        return leaf({ text: value });
+        return { t: 'attach', filename: value };
       case 'in':
       case 'label': {
         if (v === 'anywhere' || v === 'all') return { t: 'scope', s: { kind: 'anywhere' } };
@@ -286,6 +289,14 @@ class Parser {
   }
 }
 
+/**
+ * 낱말 검색. 네이버 IMAP의 TEXT 검색은 한글을 찾지 못해서(실제 계정에서 확인),
+ * Gmail처럼 제목·보낸 사람·본문을 각각 찾아 합친다.
+ */
+function keyword(w: string): Node {
+  return { t: 'leaf', q: { or: [{ subject: w }, { from: w }, { body: w }] } };
+}
+
 function negate(n: Node): Node {
   if (n.t === 'all') return n;
   if (n.t === 'not') return n.c;
@@ -296,11 +307,14 @@ function negate(n: Node): Node {
 function extractScopes(root: Node, warnings: string[]) {
   const include: Scope[] = [];
   const exclude: Scope[] = [];
+  let attachment: ParsedQuery['attachment'];
   const top = root.t === 'and' ? root.c : [root];
   const rest: Node[] = [];
   for (const n of top) {
     if (n.t === 'scope') include.push(n.s);
     else if (n.t === 'not' && n.c.t === 'scope') exclude.push(n.c.s);
+    else if (n.t === 'attach') attachment = { required: true, filename: n.filename ?? attachment?.filename };
+    else if (n.t === 'not' && n.c.t === 'attach' && !n.c.filename) attachment = { required: false };
     else rest.push(n);
   }
   const strip = (n: Node): Node => {
@@ -308,11 +322,15 @@ function extractScopes(root: Node, warnings: string[]) {
       warnings.push('메일함 조건(in:/label:)은 OR나 괄호 안에서는 쓸 수 없어 무시했습니다.');
       return { t: 'all' };
     }
+    if (n.t === 'attach') {
+      warnings.push('첨부 조건(has:attachment, filename:)은 OR나 괄호 안에서는 쓸 수 없어 무시했습니다.');
+      return { t: 'all' };
+    }
     if (n.t === 'and' || n.t === 'or') return { ...n, c: n.c.map(strip) };
     if (n.t === 'not') return { t: 'not', c: strip(n.c) };
     return n;
   };
-  return { include, exclude, rest: rest.map(strip) };
+  return { include, exclude, attachment, rest: rest.map(strip) };
 }
 
 /** 조건 없는 노드(all)를 걸러 낸다. OR 안에 all이 있으면 OR 전체가 all */
@@ -359,7 +377,7 @@ export function parseGmailQuery(query: string | undefined, now = new Date()): Pa
   const parser = new Parser(tokenize(query ?? ''), now);
   const root = parser.parse();
   const warnings = parser.warnings;
-  const { include, exclude, rest } = extractScopes(root, warnings);
+  const { include, exclude, attachment, rest } = extractScopes(root, warnings);
   const body = simplify({ t: 'and', c: rest });
-  return { search: body.t === 'all' ? undefined : toSearch(body), include, exclude, warnings };
+  return { search: body.t === 'all' ? undefined : toSearch(body), include, exclude, ...(attachment ? { attachment } : {}), warnings };
 }
