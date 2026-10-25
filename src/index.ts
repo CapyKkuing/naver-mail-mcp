@@ -1,4 +1,5 @@
 import { oauthProvider } from './auth';
+import { ensureClient } from './clients';
 import { isAllowedUser } from './config';
 import { naverAccount } from './mail/imap';
 import { NaverMailMcp } from './mcp';
@@ -44,6 +45,8 @@ export default {
       if (!isAllowedUser(env.ALLOWED_USERS, account.login)) return new Response('Forbidden', { status: 403 });
       return mcp.fetch(req, env, withProps(ctx, { ...account }));
     }
+    // Client ID를 사람이 직접 넣는 에이전트(Muse 등)용: 모르는 client_id는 그 자리에서 등록한다
+    if (url.pathname === '/authorize') await ensureClient(env.OAUTH_KV, url);
     // /mcp, /authorize, /oauth/*, /.well-known/*: OAuth
     return oauthProvider(env, mcp).fetch(req, env, ctx);
   },

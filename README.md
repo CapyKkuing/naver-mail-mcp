@@ -18,9 +18,11 @@ Claude, Grok, Meta Muse, ChatGPT 같은 AI 에이전트에 "커스텀 커넥터"
 | --- | --- |
 | Claude (claude.ai, 데스크톱, 모바일) | 설정 → 커넥터 → 커스텀 커넥터 추가 → `https://<내 서버>/mcp` |
 | Grok | grok.com/connectors → New Connector → Custom → `https://<내 서버>/mcp` |
-| Meta Muse | 설정에서 커넥터 URL 추가, 또는 대화창에서 URL을 주고 연결 요청 |
+| Meta Muse | 설정에서 커넥터 URL 추가, 또는 대화창에서 URL을 주고 연결 요청. Client ID 칸이 나오면 아무 값이나 넣어도 됩니다 (Client Secret은 비움) |
 | ChatGPT (OpenAI Dots 포함) | 설정 → 앱/커넥터 → 개발자 모드에서 커스텀 커넥터 추가 |
 | Claude Code, Cursor 등 | `https://<내 서버>/mcp` (OAuth) 또는 고정 토큰 헤더, 또는 stdio 모드 |
+
+Client ID를 직접 넣으라는 에이전트도 있는데, 이 서버는 처음 보는 Client ID를 자동으로 등록하므로 **아무 값이나 넣어도 됩니다**. Client Secret은 비워 두세요.
 
 주소를 넣으면 이 서버의 로그인 화면이 열립니다. **네이버 아이디와 애플리케이션 비밀번호**를 넣으면 IMAP 로그인으로 확인한 뒤 연결됩니다.
 메뉴 이름이나 요금제별 허용 여부는 각 서비스 사정에 따라 바뀔 수 있습니다.
