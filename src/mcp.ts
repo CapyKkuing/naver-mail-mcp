@@ -8,7 +8,7 @@ import { registerTools } from './tools';
 import type { Env, Props } from './types';
 
 export class NaverMailMcp extends McpAgent<Env, unknown, Props> {
-  server = new McpServer({ name: 'naver-mail-mcp', version: '0.1.1' }, { instructions: SERVER_INSTRUCTIONS });
+  server = new McpServer({ name: 'naver-mail-mcp', version: '0.1.2' }, { instructions: SERVER_INSTRUCTIONS });
 
   /**
    * 기본 McpAgent는 props(앱 비밀번호 포함)를 Durable Object 저장소에 평문으로 남긴다.
