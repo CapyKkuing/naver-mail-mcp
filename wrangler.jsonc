@@ -11,6 +11,12 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["NaverMailMcp"] }],
   // OAuth 클라이언트·토큰 저장소. Deploy to Cloudflare 버튼은 새로 만들어 id를 바꿔 넣는다. 직접 배포할 때는 `npx wrangler kv namespace create OAUTH_KV`로 만든 id로 바꾼다
   "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "db247ed018324f959c33b75da64d0cb9" }],
+  // 요청 횟수 제한 (Workers Rate Limiting, 무료). namespace_id는 이 Worker 안에서만 구분되는 번호
+  "ratelimits": [
+    { "name": "LOGIN_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
+    { "name": "GLOBAL_LOGIN_LIMITER", "namespace_id": "1003", "simple": { "limit": 60, "period": 60 } },
+    { "name": "REGISTER_LIMITER", "namespace_id": "1002", "simple": { "limit": 30, "period": 60 } }
+  ],
   "vars": {
     // 쉼표로 구분한 네이버 아이디. 비우면 누구나 자기 계정으로 연결 가능
     "ALLOWED_USERS": "",

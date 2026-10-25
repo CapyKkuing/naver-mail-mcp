@@ -1,8 +1,19 @@
 import type { Account } from './mail/imap';
 
+/** Workers Rate Limiting 바인딩 (wrangler.jsonc `ratelimits`) */
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
 export interface Env {
   MCP_OBJECT: DurableObjectNamespace;
   OAUTH_KV: KVNamespace;
+  /** 로그인 시도(POST /authorize) 제한: IP마다 분당 10회 */
+  LOGIN_LIMITER?: RateLimiter;
+  /** 로그인 시도 전체 합산 제한: 분당 60회. IP를 바꿔 가며 시도해도 네이버가 Cloudflare IP를 차단하지 않게 */
+  GLOBAL_LOGIN_LIMITER?: RateLimiter;
+  /** 클라이언트 등록(/oauth/register, 처음 보는 client_id) 제한: IP마다 분당 30회 */
+  REGISTER_LIMITER?: RateLimiter;
   /** OAuth 메타데이터에 쓰는 배포 주소. 비우면 요청이 들어온 주소 (사용자 도메인을 붙일 때만 설정) */
   PUBLIC_URL?: string;
   /** 쉼표로 구분한 네이버 아이디. 비어 있으면 누구나 자기 계정으로 연결할 수 있다 */
