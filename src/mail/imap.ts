@@ -66,7 +66,7 @@ export function explainImapError(e: unknown): Error {
   const err = e as { authenticationFailed?: boolean; responseText?: string; message?: string; code?: string };
   if (err?.authenticationFailed) {
     return new MailError(
-      '네이버 메일 로그인에 실패했습니다. 네이버 메일 환경설정에서 IMAP/SMTP 사용을 켰는지, 2단계 인증을 쓰면 일반 비밀번호 대신 애플리케이션 비밀번호를 넣었는지 확인하세요.' +
+      '네이버 메일 로그인에 실패했습니다. ① 2단계 인증을 켜고 만든 애플리케이션 비밀번호를 넣었는지(평소 비밀번호는 거부됨), ② 네이버 메일 환경설정 → POP3/IMAP 설정에서 IMAP/SMTP 사용을 "사용함"으로 저장했는지 확인하세요.' +
         (err.responseText ? ` (서버 응답: ${err.responseText})` : ''),
     );
   }
