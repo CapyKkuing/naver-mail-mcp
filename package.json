@@ -1,8 +1,8 @@
 {
   "name": "naver-mail-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "네이버 메일을 Gmail MCP와 같은 도구로 쓰는 MCP 서버 (Claude·Grok·Meta Muse·ChatGPT·Codex, IMAP/SMTP)",
-  "mcpName": "io.github.capykkuing/naver-mail-mcp",
+  "mcpName": "io.github.CapyKkuing/naver-mail-mcp",
   "type": "module",
   "license": "MIT",
   "repository": {
