@@ -3,7 +3,7 @@ import type { Account } from './mail/imap';
 export interface Env {
   MCP_OBJECT: DurableObjectNamespace;
   OAUTH_KV: KVNamespace;
-  /** OAuth 메타데이터에 쓰는 배포 주소 (예: https://naver-mail-mcp.<계정>.workers.dev) */
+  /** OAuth 메타데이터에 쓰는 배포 주소. 비우면 요청이 들어온 주소 (사용자 도메인을 붙일 때만 설정) */
   PUBLIC_URL?: string;
   /** 쉼표로 구분한 네이버 아이디. 비어 있으면 누구나 자기 계정으로 연결할 수 있다 */
   ALLOWED_USERS?: string;

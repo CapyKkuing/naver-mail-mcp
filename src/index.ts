@@ -48,6 +48,6 @@ export default {
     // Client ID를 사람이 직접 넣는 에이전트(Muse 등)용: 모르는 client_id는 그 자리에서 등록한다
     if (url.pathname === '/authorize') await ensureClient(env.OAUTH_KV, url);
     // /mcp, /authorize, /oauth/*, /.well-known/*: OAuth
-    return oauthProvider(env, mcp).fetch(req, env, ctx);
+    return oauthProvider(env, mcp, undefined, url.origin).fetch(req, env, ctx);
   },
 };

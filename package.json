@@ -1,36 +1,71 @@
 {
   "name": "naver-mail-mcp",
   "version": "0.1.0",
-  "description": "네이버 메일을 Gmail MCP와 같은 도구로 쓰는 원격 MCP 서버 (Cloudflare Workers, IMAP/SMTP)",
+  "description": "네이버 메일을 Gmail MCP와 같은 도구로 쓰는 MCP 서버 (Claude·Grok·Meta Muse·ChatGPT·Codex, IMAP/SMTP)",
+  "mcpName": "io.github.capykkuing/naver-mail-mcp",
   "type": "module",
   "license": "MIT",
-  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CapyKkuing/naver-mail-mcp.git"
+  },
+  "homepage": "https://github.com/CapyKkuing/naver-mail-mcp#readme",
+  "bugs": "https://github.com/CapyKkuing/naver-mail-mcp/issues",
+  "bin": {
+    "naver-mail-mcp": "dist/stdio.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "stdio": "tsx src/stdio.ts",
+    "build:stdio": "esbuild src/stdio.ts --bundle --platform=node --format=esm --packages=external --banner:js=\"#!/usr/bin/env node\" --outfile=dist/stdio.js",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build:stdio",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "mcp",
+    "mcp-server",
     "naver",
     "naver-mail",
+    "네이버메일",
     "imap",
+    "gmail",
+    "claude",
     "model-context-protocol"
   ],
+  "cloudflare": {
+    "bindings": {
+      "ALLOWED_USERS": {
+        "description": "연결을 허용할 네이버 아이디(쉼표로 구분). **비우면 누구나** 자기 네이버 계정으로 연결할 수 있습니다. 나만 쓸 거면 내 아이디를 넣으세요."
+      },
+      "SAVE_SENT_COPY": {
+        "description": "`true`면 보낸 메일 사본을 보낸메일함에 저장합니다. 네이버는 SMTP 발송분을 자동 저장하지 않으므로 `true`로 두세요."
+      }
+    }
+  },
   "dependencies": {
-    "@cloudflare/workers-oauth-provider": "^1.2.4",
     "@modelcontextprotocol/sdk": "^1.32.1",
-    "agents": "^0.30.1",
     "imapflow": "^2.9.1",
     "postal-mime": "^4.1.4",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@cloudflare/workers-oauth-provider": "^1.2.4",
     "@cloudflare/workers-types": "^5.20261025.1",
     "@types/node": "^26.6.5",
     "@types/smtp-server": "^3.5.13",
+    "agents": "^0.30.1",
+    "esbuild": "^0.28.2",
     "hoodiecrow-imap": "^3.3.1",
     "smtp-server": "^3.21.1",
     "tsx": "^4.23.15",
