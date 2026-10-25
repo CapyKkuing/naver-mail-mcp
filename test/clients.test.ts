@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agentName, ensureClient } from '../src/clients';
+import { agentName, ensureClient, isKnownAgentHost } from '../src/clients';
 
 function fakeKv() {
   const store = new Map<string, string>();
@@ -27,11 +27,13 @@ describe('처음 보는 client_id 자동 등록', () => {
     expect(await ensureClient(kv, authorize({ client_id: 'myid@naver.com', redirect_uri: MUSE }))).toBe('skipped');
   });
 
-  it('자동 등록한 클라이언트에는 새 redirect_uri를 덧붙이고, 정식 등록 클라이언트는 건드리지 않는다', async () => {
+  it('자동 등록한 클라이언트에는 같은 호스트의 redirect_uri만 덧붙이고, 정식 등록 클라이언트는 건드리지 않는다', async () => {
     const kv = fakeKv();
     await ensureClient(kv, authorize({ client_id: 'a', redirect_uri: MUSE }));
-    expect(await ensureClient(kv, authorize({ client_id: 'a', redirect_uri: 'https://grok.com/cb' }))).toBe('updated');
-    expect(JSON.parse(kv.store.get('client:a')!).redirectUris).toEqual([MUSE, 'https://grok.com/cb']);
+    expect(await ensureClient(kv, authorize({ client_id: 'a', redirect_uri: 'https://agent.meta.ai/api/hatch/oauth/callback2' }))).toBe('updated');
+    // 다른 호스트는 거부: 남의 Client ID에 내 주소를 붙여 토큰을 가로채는 길을 막는다
+    expect(await ensureClient(kv, authorize({ client_id: 'a', redirect_uri: 'https://evil.example/cb' }))).toBe('skipped');
+    expect(JSON.parse(kv.store.get('client:a')!).redirectUris).toEqual([MUSE, 'https://agent.meta.ai/api/hatch/oauth/callback2']);
     kv.store.set('client:dcr', JSON.stringify({ clientId: 'dcr', redirectUris: ['https://x.example/cb'] }));
     expect(await ensureClient(kv, authorize({ client_id: 'dcr', redirect_uri: MUSE }))).toBe('skipped');
   });
@@ -49,5 +51,7 @@ describe('처음 보는 client_id 자동 등록', () => {
     expect(agentName('https://claude.ai/api/mcp/auth_callback')).toBe('Claude');
     expect(agentName('https://grok.com/oauth/cb')).toBe('Grok');
     expect(agentName('https://chatgpt.com/connector_platform_oauth_redirect')).toBe('ChatGPT');
+    expect(isKnownAgentHost('agent.meta.ai')).toBe(true);
+    expect(isKnownAgentHost('evil.example')).toBe(false);
   });
 });

@@ -13,7 +13,7 @@ if (!NAVER_ID || !NAVER_APP_PASSWORD) {
   process.exit(1);
 }
 const svc = new NaverMailService(naverAccount(NAVER_ID, NAVER_APP_PASSWORD, NAVER_DISPLAY_NAME), mailConfig(process.env));
-const server = new McpServer({ name: 'naver-mail-mcp', version: '0.1.1' }, { instructions: SERVER_INSTRUCTIONS });
+const server = new McpServer({ name: 'naver-mail-mcp', version: '0.1.2' }, { instructions: SERVER_INSTRUCTIONS });
 registerTools(server, () => svc);
 await server.connect(new StdioServerTransport());
 console.error(`naver-mail-mcp (stdio): ${svc.account.email}`);

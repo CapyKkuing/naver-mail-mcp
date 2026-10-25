@@ -33,6 +33,19 @@ export function agentName(redirectUri: string): string {
   return KNOWN_AGENTS.find(([re]) => re.test(host))?.[1] ?? host;
 }
 
+/** 로그인 화면의 경고용: 권한이 갈 곳이 알려진 AI 서비스인지 */
+export function isKnownAgentHost(host: string): boolean {
+  return KNOWN_AGENTS.some(([re]) => re.test(host));
+}
+
+const hostOf = (uri: string) => {
+  try {
+    return new URL(uri).hostname;
+  } catch {
+    return '';
+  }
+};
+
 /** https, 또는 내 컴퓨터(loopback)로 돌아오는 http만 받는다 */
 export function acceptableRedirect(uri: string): boolean {
   try {
@@ -63,7 +76,9 @@ export async function ensureClient(kv: Kv, url: URL, now = Date.now()): Promise<
   const existing = await kv.get<ClientRecord>(key, { type: 'json' });
   if (existing) {
     if (!existing.autoRegistered || existing.redirectUris.includes(redirectUri)) return 'skipped';
-    if (existing.redirectUris.length >= 10) return 'skipped';
+    // 같은 서비스(같은 호스트)의 다른 경로만 덧붙인다. 다른 호스트를 덧붙이게 두면, 남이 쓰는 Client ID에
+    // 자기 주소를 붙여 "Meta Muse에 연결할까요?"라는 화면으로 자기에게 토큰을 보내게 할 수 있다
+    if (existing.redirectUris.length >= 10 || !existing.redirectUris.some((u) => hostOf(u) === hostOf(redirectUri))) return 'skipped';
     await kv.put(key, JSON.stringify({ ...existing, redirectUris: [...existing.redirectUris, redirectUri] }));
     return 'updated';
   }

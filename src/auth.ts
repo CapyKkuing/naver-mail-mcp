@@ -1,4 +1,5 @@
 import { AuthorizationError, CimdFetchError, OAuthProvider, type ConsentDescription, type OAuthHelpers } from '@cloudflare/workers-oauth-provider';
+import { isKnownAgentHost } from './clients';
 import { isAllowedUser, mailConfig } from './config';
 import { naverAccount, withClient } from './mail/imap';
 import type { Env, Props } from './types';
@@ -31,6 +32,11 @@ button{padding:.6rem 1.1rem;font-size:1rem;border-radius:6px;border:0;cursor:poi
 <h1>${escape(d.clientName)}에 네이버 메일을 연결할까요?</h1>
 <p class="muted">${origin}<br>권한이 전달될 곳: <strong>${escape(d.redirectHost)}</strong></p>
 ${d.redirectIsLoopback ? '<p><strong>내 컴퓨터의 앱으로 권한이 전달됩니다.</strong> 방금 직접 연결을 시작한 경우에만 허용하세요.</p>' : ''}
+${
+  !d.redirectIsLoopback && d.redirectHost && !isKnownAgentHost(d.redirectHost)
+    ? `<p class="err"><strong>주의:</strong> <code>${escape(d.redirectHost)}</code>는 알려진 AI 서비스(Claude, Grok, Meta Muse, ChatGPT)가 아닙니다. 이 화면이 열린 링크를 남에게서 받았다면 <strong>거부</strong>하세요. 연결을 허용하면 그곳에서 내 네이버 메일을 읽고 보낼 수 있습니다.</p>`
+    : ''
+}
 <div class="box">
 <strong>처음이라면 먼저 준비하세요 (약 3분)</strong>
 <ol style="margin:.4rem 0 0;padding-left:1.2rem">

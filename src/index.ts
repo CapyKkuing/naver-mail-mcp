@@ -3,7 +3,7 @@ import { ensureClient } from './clients';
 import { isAllowedUser } from './config';
 import { naverAccount } from './mail/imap';
 import { NaverMailMcp } from './mcp';
-import type { Env, Props } from './types';
+import type { Env, Props, RateLimiter } from './types';
 
 export { NaverMailMcp };
 
@@ -21,6 +21,14 @@ export async function isBearerAuthorized(req: Request, token: string | undefined
   const [a, b] = await Promise.all([sha256(got), sha256(token)]);
   return crypto.subtle.timingSafeEqual(a, b);
 }
+
+/** 바인딩이 없으면(로컬 테스트 등) 제한하지 않는다 */
+async function allowed(limiter: RateLimiter | undefined, key: string): Promise<boolean> {
+  if (!limiter) return true;
+  return (await limiter.limit({ key })).success;
+}
+
+const tooMany = (message: string) => new Response(message, { status: 429, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '60' } });
 
 /** 고정 토큰 모드: 시크릿에 넣어 둔 소유자 계정으로 MCP 세션을 연다 */
 function withProps(ctx: ExecutionContext, props: Props): ExecutionContext {
@@ -45,8 +53,17 @@ export default {
       if (!isAllowedUser(env.ALLOWED_USERS, account.login)) return new Response('Forbidden', { status: 403 });
       return mcp.fetch(req, env, withProps(ctx, { ...account }));
     }
+    // 요청 횟수 제한: 로그인 시도는 네이버에 실제 로그인해 보므로(무차별 대입에 이용될 수 있음), 등록은 KV 쓰기를 쓰므로
+    const ip = req.headers.get('cf-connecting-ip') ?? 'unknown';
+    if (url.pathname === '/authorize' && req.method === 'POST') {
+      if (!(await allowed(env.LOGIN_LIMITER, ip))) return tooMany('로그인 시도가 너무 많습니다. 1분 뒤에 다시 시도하세요.');
+      if (!(await allowed(env.GLOBAL_LOGIN_LIMITER, 'global'))) return tooMany('지금 로그인 요청이 몰려 있습니다. 1분 뒤에 다시 시도하세요.');
+    }
+    if (((url.pathname === '/authorize' && req.method === 'GET') || url.pathname === '/oauth/register') && !(await allowed(env.REGISTER_LIMITER, ip))) {
+      return tooMany('요청이 너무 많습니다. 1분 뒤에 다시 시도하세요.');
+    }
     // Client ID를 사람이 직접 넣는 에이전트(Muse 등)용: 모르는 client_id는 그 자리에서 등록한다
-    if (url.pathname === '/authorize') await ensureClient(env.OAUTH_KV, url);
+    if (url.pathname === '/authorize' && req.method === 'GET') await ensureClient(env.OAUTH_KV, url);
     // /mcp, /authorize, /oauth/*, /.well-known/*: OAuth
     return oauthProvider(env, mcp, undefined, url.origin).fetch(req, env, ctx);
   },
