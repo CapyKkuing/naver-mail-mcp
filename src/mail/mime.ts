@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { MailError } from './imap';
 
 /** 보낼 메일을 RFC 5322/MIME 원문으로 만든다. 한글 헤더·본문은 UTF-8 base64로 인코딩한다. */
 
@@ -64,7 +65,18 @@ export function encodeWord(value: string): string {
   return words.map((w) => `=?UTF-8?B?${Buffer.from(w, 'utf8').toString('base64')}?=`).join(`${CRLF} `);
 }
 
+/** 주소에 줄바꿈·꺾쇠·공백이 섞이면 메일 머리말이나 SMTP 명령이 깨질 수 있으므로 받지 않는다 */
+const SAFE_ADDRESS = /^[^\s<>@\u0000-\u001f\u007f]+@[^\s<>@\u0000-\u001f\u007f]+$/;
+
+export function assertAddress(address: string): string {
+  if (!SAFE_ADDRESS.test(address)) throw new MailError(`메일 주소 형식이 올바르지 않습니다: ${JSON.stringify(address.slice(0, 80))}`);
+  return address;
+}
+
 export function formatAddress(a: Address): string {
+  assertAddress(a.address);
+  if (!a.name) return a.address;
+  a = { ...a, name: a.name.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim() };
   if (!a.name) return a.address;
   const name = isAscii(a.name) ? (/[()<>[\]:;@\\,."]/.test(a.name) ? `"${a.name.replace(/["\\]/g, '\\$&')}"` : a.name) : encodeWord(a.name);
   return `${name} <${a.address}>`;
@@ -152,7 +164,7 @@ export function buildMessage(o: Outgoing): BuiltMessage {
   if (regular.length) body = multipart('mixed', [body, ...regular.map(({ a, i }) => attachmentPart(a, i))]);
 
   const raw = [...headers, ...body.headers].join(CRLF) + CRLF + CRLF + body.body + CRLF;
-  const recipients = [...(o.to ?? []), ...(o.cc ?? []), ...(o.bcc ?? [])].map((a) => a.address);
+  const recipients = [...(o.to ?? []), ...(o.cc ?? []), ...(o.bcc ?? [])].map((a) => assertAddress(a.address));
   return { raw, messageId, recipients: [...new Set(recipients)] };
 }
 

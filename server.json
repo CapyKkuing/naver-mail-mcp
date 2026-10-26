@@ -7,7 +7,7 @@
     "url": "https://github.com/CapyKkuing/naver-mail-mcp",
     "source": "github"
   },
-  "version": "0.1.2",
+  "version": "0.1.3",
   "remotes": [
     {
       "type": "streamable-http",
@@ -18,7 +18,7 @@
     {
       "registryType": "npm",
       "identifier": "naver-mail-mcp",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         { "name": "NAVER_ID", "description": "Naver ID (without @naver.com)", "isRequired": true, "format": "string" },

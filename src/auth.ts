@@ -70,6 +70,8 @@ const verifyImap: Verifier = (env, props) => withClient(props, mailConfig(env), 
 
 async function authorize(req: Request, env: Env & { OAUTH_PROVIDER: OAuthHelpers }, verify: Verifier): Promise<Response> {
   const oauth = env.OAUTH_PROVIDER;
+  // 라이브러리는 정해진 주소가 아닌 요청을 모두 여기로 보낸다. 로그인 횟수 제한은 /authorize에만 걸리므로 다른 주소는 거부한다
+  if (new URL(req.url).pathname !== '/authorize') return new Response('Not Found', { status: 404 });
   try {
     if (req.method === 'GET') {
       const request = await oauth.parseAuthRequest(req);
@@ -80,6 +82,9 @@ async function authorize(req: Request, env: Env & { OAUTH_PROVIDER: OAuthHelpers
     if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
     const form = await req.formData();
     const handle = String(form.get('handle') ?? '');
+    // 네이버에 로그인해 보기 전에, 로그인 화면에서 시작한 정상 연결 요청인지 먼저 확인한다
+    if (!handle) return new Response('Bad Request', { status: 400 });
+    await oauth.parseAuthRequest(req);
     if (form.get('decision') !== 'approve') {
       const denied = await oauth.denyConsent(req, handle);
       return new Response(null, { status: 302, headers: denied.headers });

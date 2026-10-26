@@ -47,7 +47,8 @@ export function htmlToText(html: string): string {
     .replace(/&(#\d+|#x[\da-f]+|\w+);/gi, (m, e: string) => {
       if (e[0] === '#') {
         const code = e[1]?.toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-        return Number.isFinite(code) ? String.fromCodePoint(code) : m;
+        if (!Number.isFinite(code)) return m;
+        return code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '�';
       }
       return ENTITIES[e.toLowerCase()] ?? m;
     })

@@ -3,11 +3,13 @@ import { ensureClient } from './clients';
 import { isAllowedUser } from './config';
 import { naverAccount } from './mail/imap';
 import { NaverMailMcp } from './mcp';
+import { bindSessionToUser } from './session';
 import type { Env, Props, RateLimiter } from './types';
 
 export { NaverMailMcp };
 
-const mcp = NaverMailMcp.serve('/mcp');
+/** 세션은 로그인한 계정에 묶는다 (src/session.ts) */
+const mcp = bindSessionToUser<Env>(NaverMailMcp.serve('/mcp'));
 
 async function sha256(s: string): Promise<ArrayBuffer> {
   return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
